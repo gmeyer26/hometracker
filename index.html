@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>$2.5M Home Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Fraunces:ital,wght@0,300;0,600;1,300&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d0f0e;
+    --surface: #161918;
+    --surface2: #1e2220;
+    --border: rgba(255,255,255,0.07);
+    --border2: rgba(255,255,255,0.13);
+    --text: #e8ede9;
+    --muted: #7a8c7d;
+    --accent: #b8f5c8;
+    --accent2: #5edb82;
+    --warn: #f5c26b;
+    --danger: #f07070;
+    --mono: 'DM Mono', monospace;
+    --serif: 'Fraunces', Georgia, serif;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 14px;
+    min-height: 100vh;
+    padding: 0;
+  }
+
+  /* HEADER */
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 24px 40px;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 16px;
+  }
+  header h1 {
+    font-family: var(--serif);
+    font-weight: 300;
+    font-size: 26px;
+    letter-spacing: -0.02em;
+    color: var(--text);
+  }
+  header h1 em { font-style: italic; color: var(--accent); }
+  .header-right { font-size: 11px; color: var(--muted); text-align: right; line-height: 1.7; }
+
+  /* LAYOUT */
+  .app { display: grid; grid-template-columns: 320px 1fr; min-height: calc(100vh - 73px); }
+
+  /* SIDEBAR */
+  aside {
+    border-right: 1px solid var(--border);
+    padding: 28px 24px;
+    overflow-y: auto;
+  }
+  .sidebar-section { margin-bottom: 28px; }
+  .sidebar-section h3 {
+    font-size: 9px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 14px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  .field { margin-bottom: 12px; }
+  .field label {
+    display: block;
+    font-size: 11px;
+    color: var(--muted);
+    margin-bottom: 4px;
+    letter-spacing: 0.04em;
+  }
+  .field input[type=number], .field input[type=text] {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: 6px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 13px;
+    padding: 8px 10px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .field input:focus { border-color: var(--accent2); }
+  .field input[type=range] { width: 100%; accent-color: var(--accent2); margin-top: 2px; }
+  .field .range-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .field .range-val { font-size: 12px; font-weight: 500; color: var(--accent); min-width: 52px; text-align: right; }
+
+  .btn {
+    width: 100%;
+    padding: 10px;
+    background: var(--accent2);
+    color: #0d1a10;
+    border: none;
+    border-radius: 6px;
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    transition: opacity 0.15s;
+  }
+  .btn:hover { opacity: 0.85; }
+  .btn.secondary {
+    background: transparent;
+    border: 1px solid var(--border2);
+    color: var(--muted);
+    margin-top: 8px;
+  }
+  .btn.secondary:hover { border-color: var(--accent2); color: var(--accent); }
+
+  /* MAIN */
+  main { padding: 28px 36px; overflow-y: auto; }
+
+  /* METRICS ROW */
+  .metrics {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px;
+    margin-bottom: 28px;
+  }
+  .metric-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 18px;
+    position: relative;
+    overflow: hidden;
+  }
+  .metric-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--accent2);
+    opacity: 0.4;
+  }
+  .metric-card.warn::before { background: var(--warn); }
+  .metric-card.danger::before { background: var(--danger); }
+  .metric-card .label { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+  .metric-card .value { font-family: var(--serif); font-size: 24px; font-weight: 600; line-height: 1.1; color: var(--text); }
+  .metric-card .sub { font-size: 10px; color: var(--muted); margin-top: 4px; }
+  .metric-card .delta { font-size: 11px; margin-top: 4px; }
+  .delta.up { color: var(--accent2); }
+  .delta.down { color: var(--danger); }
+
+  /* PROGRESS BAR */
+  .progress-section { margin-bottom: 28px; }
+  .progress-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
+  .progress-header span { font-size: 11px; color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase; }
+  .progress-header strong { font-family: var(--serif); font-size: 15px; color: var(--accent); }
+  .progress-track {
+    height: 8px;
+    background: var(--surface2);
+    border-radius: 4px;
+    overflow: hidden;
+    position: relative;
+  }
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent2), var(--accent));
+    border-radius: 4px;
+    transition: width 0.5s ease;
+  }
+  .progress-target {
+    position: absolute;
+    top: -4px;
+    width: 2px;
+    height: 16px;
+    background: var(--warn);
+    border-radius: 1px;
+  }
+
+  /* TABS */
+  .tabs { display: flex; gap: 4px; margin-bottom: 20px; border-bottom: 1px solid var(--border); padding-bottom: 0; }
+  .tab {
+    padding: 8px 16px;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    transition: color 0.15s, border-color 0.15s;
+  }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent2); }
+  .tab:hover:not(.active) { color: var(--text); }
+
+  /* TAB PANELS */
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  /* CHART */
+  .chart-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px; margin-bottom: 20px; }
+  .chart-wrap h4 { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 16px; }
+
+  /* LOG TABLE */
+  .log-table { width: 100%; border-collapse: collapse; }
+  .log-table th {
+    text-align: left; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--muted); padding: 8px 12px; border-bottom: 1px solid var(--border);
+  }
+  .log-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); font-size: 12px; vertical-align: middle; }
+  .log-table tr:last-child td { border-bottom: none; }
+  .log-table tr:hover td { background: var(--surface2); }
+  .delete-btn { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 14px; padding: 2px 6px; border-radius: 4px; }
+  .delete-btn:hover { color: var(--danger); background: rgba(240,112,112,0.1); }
+  .badge {
+    display: inline-block; padding: 2px 8px; border-radius: 3px; font-size: 10px;
+    letter-spacing: 0.05em; text-transform: uppercase;
+  }
+  .badge.savings { background: rgba(94,219,130,0.15); color: var(--accent2); }
+  .badge.income  { background: rgba(245,194,107,0.15); color: var(--warn); }
+  .badge.expense { background: rgba(240,112,112,0.15); color: var(--danger); }
+
+  /* ADD ENTRY FORM */
+  .entry-form {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+  .entry-form h4 { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 16px; }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 10px; align-items: end; }
+  .form-grid select {
+    background: var(--surface2); border: 1px solid var(--border2); border-radius: 6px;
+    color: var(--text); font-family: var(--mono); font-size: 13px; padding: 8px 10px; outline: none;
+  }
+  .form-grid .add-btn {
+    padding: 9px 18px; background: var(--accent2); color: #0d1a10;
+    border: none; border-radius: 6px; font-family: var(--mono); font-size: 12px;
+    font-weight: 500; cursor: pointer; white-space: nowrap; letter-spacing: 0.04em;
+  }
+  .form-grid .add-btn:hover { opacity: 0.85; }
+
+  /* PROJECTIONS */
+  .projection-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+  /* EMPTY STATE */
+  .empty { text-align: center; padding: 48px 20px; color: var(--muted); }
+  .empty p { font-size: 13px; margin-top: 8px; }
+
+  /* MILESTONE */
+  .milestone-list { display: flex; flex-direction: column; gap: 10px; }
+  .milestone {
+    display: flex; align-items: center; gap: 14px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 12px 16px;
+  }
+  .milestone.done { border-color: rgba(94,219,130,0.3); }
+  .milestone-icon { font-size: 18px; flex-shrink: 0; }
+  .milestone-info { flex: 1; }
+  .milestone-info strong { display: block; font-size: 12px; font-weight: 500; color: var(--text); }
+  .milestone-info span { font-size: 11px; color: var(--muted); }
+  .milestone-check { font-size: 16px; }
+
+  @media (max-width: 800px) {
+    .app { grid-template-columns: 1fr; }
+    aside { border-right: none; border-bottom: 1px solid var(--border); }
+    header { padding: 16px 20px; }
+    main { padding: 20px; }
+    .form-grid { grid-template-columns: 1fr 1fr; }
+    .form-grid .add-btn { grid-column: span 2; }
+    .projection-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Home <em>Savings</em> Tracker</h1>
+  <div class="header-right">
+    <span id="today-date"></span><br>
+    <span id="years-left"></span> until target
+  </div>
+</header>
+
+<div class="app">
+  <!-- SIDEBAR -->
+  <aside>
+    <div class="sidebar-section">
+      <h3>Goal Settings</h3>
+      <div class="field">
+        <label>Target home price ($)</label>
+        <input type="number" id="s-price" value="2500000" step="50000">
+      </div>
+      <div class="field">
+        <label>Down payment %</label>
+        <div class="range-row">
+          <input type="range" id="s-dp" min="10" max="40" value="20" step="5">
+          <span class="range-val" id="s-dp-v">20%</span>
+        </div>
+      </div>
+      <div class="field">
+        <label>Target year</label>
+        <input type="number" id="s-year" value="2035" min="2025" max="2050">
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <h3>Income Profile</h3>
+      <div class="field">
+        <label>Current salary ($)</label>
+        <input type="number" id="s-salary" value="93200" step="1000">
+      </div>
+      <div class="field">
+        <label>Annual bonus ($)</label>
+        <input type="number" id="s-bonus" value="10000" step="500">
+      </div>
+      <div class="field">
+        <label>Annual raise %</label>
+        <div class="range-row">
+          <input type="range" id="s-raise" min="1" max="15" value="7" step="0.5">
+          <span class="range-val" id="s-raise-v">7.0%</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <h3>Savings Plan</h3>
+      <div class="field">
+        <label>Current savings ($)</label>
+        <input type="number" id="s-current" value="90000" step="1000">
+      </div>
+      <div class="field">
+        <label>Savings rate (% take-home)</label>
+        <div class="range-row">
+          <input type="range" id="s-srate" min="5" max="70" value="35" step="1">
+          <span class="range-val" id="s-srate-v">35%</span>
+        </div>
+      </div>
+      <div class="field">
+        <label>Investment return %</label>
+        <div class="range-row">
+          <input type="range" id="s-irate" min="2" max="12" value="6" step="0.5">
+          <span class="range-val" id="s-irate-v">6.0%</span>
+        </div>
+      </div>
+      <div class="field">
+        <label>Mortgage rate %</label>
+        <div class="range-row">
+          <input type="range" id="s-mrate" min="3" max="10" value="6.5" step="0.25">
+          <span class="range-val" id="s-mrate-v">6.50%</span>
+        </div>
+      </div>
+    </div>
+
+    <button class="btn" onclick="saveSettings()">Save Settings</button>
+    <button class="btn secondary" onclick="exportData()">Export Data (JSON)</button>
+    <button class="btn secondary" onclick="clearData()">Reset All Data</button>
+  </aside>
+
+  <!-- MAIN -->
+  <main>
+    <!-- METRICS -->
+    <div class="metrics">
+      <div class="metric-card" id="mc-savings">
+        <div class="label">Current savings</div>
+        <div class="value" id="mc-savings-v">$0</div>
+        <div class="sub" id="mc-savings-s">logged balance</div>
+      </div>
+      <div class="metric-card" id="mc-target">
+        <div class="label">Cash needed</div>
+        <div class="value" id="mc-target-v">—</div>
+        <div class="sub">down + closing costs</div>
+      </div>
+      <div class="metric-card" id="mc-gap">
+        <div class="label">Remaining gap</div>
+        <div class="value" id="mc-gap-v">—</div>
+        <div class="delta" id="mc-gap-d"></div>
+      </div>
+      <div class="metric-card" id="mc-monthly">
+        <div class="label">Monthly mortgage</div>
+        <div class="value" id="mc-monthly-v">—</div>
+        <div class="sub" id="mc-monthly-s"></div>
+      </div>
+      <div class="metric-card" id="mc-proj">
+        <div class="label">Projected at target</div>
+        <div class="value" id="mc-proj-v">—</div>
+        <div class="delta" id="mc-proj-d"></div>
+      </div>
+    </div>
+
+    <!-- PROGRESS -->
+    <div class="progress-section">
+      <div class="progress-header">
+        <span>Progress to down payment</span>
+        <strong id="progress-pct">0%</strong>
+      </div>
+      <div class="progress-track">
+        <div class="progress-fill" id="progress-fill" style="width:0%"></div>
+        <div class="progress-target" id="progress-target"></div>
+      </div>
+      <div style="display:flex; justify-content:space-between; margin-top:5px;">
+        <span style="font-size:10px;color:var(--muted);" id="progress-now">$0</span>
+        <span style="font-size:10px;color:var(--warn);">target</span>
+        <span style="font-size:10px;color:var(--muted);" id="progress-goal">$0</span>
+      </div>
+    </div>
+
+    <!-- TABS -->
+    <div class="tabs">
+      <div class="tab active" onclick="switchTab('overview')">Overview</div>
+      <div class="tab" onclick="switchTab('log')">Log Entry</div>
+      <div class="tab" onclick="switchTab('history')">History</div>
+      <div class="tab" onclick="switchTab('milestones')">Milestones</div>
+    </div>
+
+    <!-- OVERVIEW PANEL -->
+    <div class="panel active" id="panel-overview">
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+        <div class="chart-wrap">
+          <h4>Savings trajectory</h4>
+          <div style="position:relative;height:220px;"><canvas id="chart-trajectory" role="img" aria-label="Savings trajectory over time"></canvas></div>
+        </div>
+        <div class="chart-wrap">
+          <h4>Monthly payment breakdown</h4>
+          <div style="position:relative;height:220px;"><canvas id="chart-payment" role="img" aria-label="Monthly payment breakdown"></canvas></div>
+        </div>
+      </div>
+      <div class="chart-wrap" style="margin-top:0;">
+        <h4>Income growth projection</h4>
+        <div style="position:relative;height:180px;"><canvas id="chart-income" role="img" aria-label="Income growth over years"></canvas></div>
+      </div>
+    </div>
+
+    <!-- LOG PANEL -->
+    <div class="panel" id="panel-log">
+      <div class="entry-form">
+        <h4>Log a transaction</h4>
+        <div class="form-grid">
+          <div class="field" style="margin:0;">
+            <label>Date</label>
+            <input type="text" id="e-date" placeholder="YYYY-MM-DD" style="width:100%">
+          </div>
+          <div class="field" style="margin:0;">
+            <label>Type</label>
+            <select id="e-type">
+              <option value="savings">Savings deposit</option>
+              <option value="income">Bonus / income</option>
+              <option value="expense">Expense / withdrawal</option>
+            </select>
+          </div>
+          <div class="field" style="margin:0;">
+            <label>Amount ($)</label>
+            <input type="number" id="e-amount" placeholder="5000" step="100" style="width:100%">
+          </div>
+          <button class="add-btn" onclick="addEntry()">+ Add</button>
+        </div>
+        <div class="field" style="margin-top:10px;">
+          <label>Note (optional)</label>
+          <input type="text" id="e-note" placeholder="e.g. December savings transfer" style="width:100%">
+        </div>
+      </div>
+
+      <div class="entry-form">
+        <h4>Update current savings balance</h4>
+        <div style="display:grid; grid-template-columns:1fr auto; gap:10px; align-items:end;">
+          <div class="field" style="margin:0;">
+            <label>Actual balance right now ($)</label>
+            <input type="number" id="e-balance" placeholder="90000" step="100" style="width:100%">
+          </div>
+          <button class="add-btn" onclick="updateBalance()">Update</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- HISTORY PANEL -->
+    <div class="panel" id="panel-history">
+      <div class="chart-wrap" style="overflow-x:auto;">
+        <h4>Transaction history</h4>
+        <div id="history-table-wrap">
+          <div class="empty">
+            <div style="font-size:32px;">📋</div>
+            <p>No transactions logged yet.<br>Head to Log Entry to add your first one.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MILESTONES PANEL -->
+    <div class="panel" id="panel-milestones">
+      <div class="milestone-list" id="milestone-list"></div>
+    </div>
+  </main>
+</div>
+
+<script>
+// ── STORAGE ──────────────────────────────────────────────────────────
+const STORE_KEY = 'home_tracker_v1';
+
+function load() {
+  try { return JSON.parse(localStorage.getItem(STORE_KEY)) || defaultState(); }
+  catch(e) { return defaultState(); }
+}
+function save(state) { localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
+function defaultState() {
+  return {
+    settings: {
+      price: 2500000, dp: 20, year: 2035,
+      salary: 93200, bonus: 10000, raise: 7,
+      current: 90000, srate: 35, irate: 6, mrate: 6.5
+    },
+    balance: 90000,
+    entries: []
+  };
+}
+
+let state = load();
+
+// ── INIT ──────────────────────────────────────────────────────────────
+function init() {
+  const s = state.settings;
+  document.getElementById('s-price').value  = s.price;
+  document.getElementById('s-dp').value     = s.dp;
+  document.getElementById('s-dp-v').textContent = s.dp + '%';
+  document.getElementById('s-year').value   = s.year;
+  document.getElementById('s-salary').value = s.salary;
+  document.getElementById('s-bonus').value  = s.bonus;
+  document.getElementById('s-raise').value  = s.raise;
+  document.getElementById('s-raise-v').textContent = parseFloat(s.raise).toFixed(1) + '%';
+  document.getElementById('s-current').value = s.current;
+  document.getElementById('s-srate').value  = s.srate;
+  document.getElementById('s-srate-v').textContent = s.srate + '%';
+  document.getElementById('s-irate').value  = s.irate;
+  document.getElementById('s-irate-v').textContent = parseFloat(s.irate).toFixed(1) + '%';
+  document.getElementById('s-mrate').value  = s.mrate;
+  document.getElementById('s-mrate-v').textContent = parseFloat(s.mrate).toFixed(2) + '%';
+
+  const today = new Date();
+  document.getElementById('today-date').textContent = today.toLocaleDateString('en-US', {month:'long', day:'numeric', year:'numeric'});
+  document.getElementById('e-date').value = today.toISOString().slice(0,10);
+
+  updateYearsLeft();
+  recalc();
+}
+
+function updateYearsLeft() {
+  const now = new Date().getFullYear();
+  const target = parseInt(state.settings.year);
+  const diff = target - now;
+  document.getElementById('years-left').textContent = diff > 0 ? diff + ' years' : 'Target year reached';
+}
+
+// ── RANGE SLIDERS ─────────────────────────────────────────────────────
+document.getElementById('s-dp').addEventListener('input', e => {
+  document.getElementById('s-dp-v').textContent = e.target.value + '%'; recalc();
+});
+document.getElementById('s-raise').addEventListener('input', e => {
+  document.getElementById('s-raise-v').textContent = parseFloat(e.target.value).toFixed(1) + '%'; recalc();
+});
+document.getElementById('s-srate').addEventListener('input', e => {
+  document.getElementById('s-srate-v').textContent = e.target.value + '%'; recalc();
+});
+document.getElementById('s-irate').addEventListener('input', e => {
+  document.getElementById('s-irate-v').textContent = parseFloat(e.target.value).toFixed(1) + '%'; recalc();
+});
+document.getElementById('s-mrate').addEventListener('input', e => {
+  document.getElementById('s-mrate-v').textContent = parseFloat(e.target.value).toFixed(2) + '%'; recalc();
+});
+['s-price','s-year','s-salary','s-bonus','s-current'].forEach(id => {
+  document.getElementById(id).addEventListener('input', recalc);
+});
+
+// ── CALC ENGINE ───────────────────────────────────────────────────────
+function getSettings() {
+  return {
+    price:   parseFloat(document.getElementById('s-price').value)  || 2500000,
+    dp:      parseFloat(document.getElementById('s-dp').value)     || 20,
+    year:    parseInt(document.getElementById('s-year').value)     || 2035,
+    salary:  parseFloat(document.getElementById('s-salary').value) || 93200,
+    bonus:   parseFloat(document.getElementById('s-bonus').value)  || 10000,
+    raise:   parseFloat(document.getElementById('s-raise').value)  || 7,
+    current: parseFloat(document.getElementById('s-current').value)|| 90000,
+    srate:   parseFloat(document.getElementById('s-srate').value)  || 35,
+    irate:   parseFloat(document.getElementById('s-irate').value)  || 6,
+    mrate:   parseFloat(document.getElementById('s-mrate').value)  || 6.5
+  };
+}
+
+function projectSavings(s, startBalance, years) {
+  const TAX = 0.32;
+  let salary = s.salary, savings = startBalance;
+  const proj = [savings], salaries = [];
+  for (let y = 0; y < years; y++) {
+    const gross = salary + s.bonus;
+    const takeHome = gross * (1 - TAX);
+    savings = savings * (1 + s.irate/100) + takeHome * (s.srate/100);
+    proj.push(Math.round(savings));
+    salaries.push(Math.round(gross));
+    salary *= (1 + s.raise/100);
+  }
+  return { proj, salaries };
+}
+
+let charts = {};
+function recalc() {
+  const s = getSettings();
+  const now = new Date().getFullYear();
+  const years = Math.max(1, s.year - now);
+  const balance = state.balance;
+
+  const cashNeeded = Math.round(s.price * s.dp/100 + s.price * 0.01);
+  const { proj, salaries } = projectSavings(s, balance, years);
+  const projAtTarget = proj[years];
+  const gap = projAtTarget - cashNeeded;
+
+  const loanAmt = s.price * (1 - s.dp/100);
+  const mr = s.mrate / 100 / 12;
+  const monthly = loanAmt * (mr * Math.pow(1+mr,360)) / (Math.pow(1+mr,360)-1);
+  const finalGross = (s.salary * Math.pow(1+s.raise/100, years)) + s.bonus;
+  const pctIncome = monthly / (finalGross/12) * 100;
+
+  // Metrics
+  document.getElementById('mc-savings-v').textContent = fmt(balance);
+  document.getElementById('mc-target-v').textContent = fmtM(cashNeeded);
+  document.getElementById('mc-gap-v').textContent = fmt(Math.abs(cashNeeded - balance));
+  document.getElementById('mc-gap-d').textContent = balance >= cashNeeded ? '✓ Goal reached!' : 'still needed';
+  document.getElementById('mc-gap-d').className = 'delta ' + (balance >= cashNeeded ? 'up' : 'down');
+  document.getElementById('mc-monthly-v').textContent = fmt(monthly);
+  document.getElementById('mc-monthly-s').textContent = Math.round(pctIncome) + '% of gross @ target';
+  document.getElementById('mc-proj-v').textContent = fmtM(projAtTarget);
+  const projOk = projAtTarget >= cashNeeded;
+  document.getElementById('mc-proj-d').textContent = projOk ? '+' + fmt(projAtTarget - cashNeeded) + ' surplus' : fmt(projAtTarget - cashNeeded) + ' shortfall';
+  document.getElementById('mc-proj-d').className = 'delta ' + (projOk ? 'up' : 'down');
+  document.getElementById('mc-gap').className = 'metric-card ' + (balance >= cashNeeded ? '' : 'warn');
+  document.getElementById('mc-proj').className = 'metric-card ' + (projOk ? '' : 'danger');
+  document.getElementById('mc-monthly').className = 'metric-card ' + (pctIncome > 36 ? 'warn' : '');
+
+  // Progress bar
+  const pct = Math.min(100, Math.round(balance / cashNeeded * 100));
+  document.getElementById('progress-fill').style.width = pct + '%';
+  document.getElementById('progress-pct').textContent = pct + '%';
+  document.getElementById('progress-now').textContent = fmt(balance);
+  document.getElementById('progress-goal').textContent = fmt(cashNeeded);
+
+  // Charts
+  const labels = Array.from({length: years+1}, (_,i) => (now+i).toString());
+
+  // Trajectory chart
+  destroyChart('trajectory');
+  charts['trajectory'] = new Chart(document.getElementById('chart-trajectory'), {
+    data: {
+      labels,
+      datasets: [
+        { type:'line', label:'Projected savings', data: proj, borderColor:'#5edb82', backgroundColor:'rgba(94,219,130,0.08)', tension:0.3, pointRadius:3, borderWidth:2, fill:true },
+        { type:'line', label:'Cash needed', data:Array(years+1).fill(cashNeeded), borderColor:'#f5c26b', borderDash:[5,4], pointRadius:0, borderWidth:1.5, backgroundColor:'transparent' }
+      ]
+    },
+    options: chartOpts('$', true)
+  });
+
+  // Payment breakdown doughnut
+  const principal = monthly * 0.3, interest = monthly * 0.7;
+  destroyChart('payment');
+  charts['payment'] = new Chart(document.getElementById('chart-payment'), {
+    type:'doughnut',
+    data: {
+      labels: ['Principal', 'Interest', 'Tax+Ins (est.)'],
+      datasets: [{ data: [Math.round(principal), Math.round(interest), Math.round(monthly*0.15)], backgroundColor:['#5edb82','#f5c26b','#f07070'], borderWidth:0 }]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false, cutout:'68%',
+      plugins:{ legend:{ display:false }, tooltip:{ callbacks:{ label: ctx => ' $'+Math.round(ctx.raw).toLocaleString() } } }
+    }
+  });
+
+  // Income chart
+  destroyChart('income');
+  charts['income'] = new Chart(document.getElementById('chart-income'), {
+    type:'bar',
+    data: {
+      labels: Array.from({length:years}, (_,i) => (now+i).toString()),
+      datasets:[{ label:'Gross income', data:salaries, backgroundColor:'rgba(94,219,130,0.25)', borderColor:'#5edb82', borderWidth:1 }]
+    },
+    options: chartOpts('$', false)
+  });
+
+  renderMilestones(s, balance, cashNeeded, projAtTarget, monthly, pctIncome, years);
+  renderHistory();
+}
+
+function destroyChart(key) {
+  if (charts[key]) { charts[key].destroy(); delete charts[key]; }
+}
+
+function chartOpts(prefix, maintainAspect) {
+  return {
+    responsive:true, maintainAspectRatio: maintainAspect ? false : false,
+    plugins:{ legend:{ display:false } },
+    scales:{
+      y:{ ticks:{ callback: v => prefix+''+Math.round(v/1000)+'K', color:'#7a8c7d', font:{size:10} }, grid:{ color:'rgba(255,255,255,0.05)' }, border:{ color:'transparent' } },
+      x:{ ticks:{ color:'#7a8c7d', font:{size:10}, maxRotation:45 }, grid:{ display:false }, border:{ color:'transparent' } }
+    }
+  };
+}
+
+// ── MILESTONES ────────────────────────────────────────────────────────
+function renderMilestones(s, balance, cashNeeded, proj, monthly, pctIncome, years) {
+  const milestones = [
+    { label: '$100K saved',       target: 100000,       current: balance, icon: '💰' },
+    { label: '$250K saved',       target: 250000,       current: balance, icon: '📈' },
+    { label: '$500K saved',       target: 500000,       current: balance, icon: '🏦' },
+    { label: 'Full down payment', target: cashNeeded,   current: balance, icon: '🏠' },
+    { label: 'Mortgage < 36% income', target: 36,      current: pctIncome, icon: '📊', invert: true },
+    { label: 'Projected surplus', target: cashNeeded,   current: proj,    icon: '✨' },
+  ];
+  const el = document.getElementById('milestone-list');
+  el.innerHTML = milestones.map(m => {
+    const done = m.invert ? m.current <= m.target : m.current >= m.target;
+    const pct  = m.invert
+      ? Math.min(100, Math.round((m.target / Math.max(m.current,1)) * 100))
+      : Math.min(100, Math.round(m.current / m.target * 100));
+    return `<div class="milestone ${done?'done':''}">
+      <div class="milestone-icon">${m.icon}</div>
+      <div class="milestone-info">
+        <strong>${m.label}</strong>
+        <span>${done ? 'Achieved ✓' : pct + '% there — ' + (m.invert ? '' : fmt(m.target - m.current) + ' to go')}</span>
+      </div>
+      <div class="milestone-check">${done ? '✅' : '⬜'}</div>
+    </div>`;
+  }).join('');
+}
+
+// ── LOG & HISTORY ─────────────────────────────────────────────────────
+function addEntry() {
+  const date   = document.getElementById('e-date').value;
+  const type   = document.getElementById('e-type').value;
+  const amount = parseFloat(document.getElementById('e-amount').value);
+  const note   = document.getElementById('e-note').value.trim();
+  if (!date || !amount || amount <= 0) { alert('Please enter a valid date and amount.'); return; }
+
+  const entry = { id: Date.now(), date, type, amount, note };
+  state.entries.unshift(entry);
+
+  if (type === 'savings' || type === 'income') state.balance += amount;
+  else if (type === 'expense') state.balance -= amount;
+
+  document.getElementById('e-amount').value = '';
+  document.getElementById('e-note').value = '';
+  save(state);
+  recalc();
+  switchTab('history');
+}
+
+function updateBalance() {
+  const val = parseFloat(document.getElementById('e-balance').value);
+  if (!val || val < 0) { alert('Enter a valid balance.'); return; }
+  state.balance = val;
+  save(state);
+  recalc();
+  alert('Balance updated to ' + fmt(val));
+}
+
+function deleteEntry(id) {
+  const idx = state.entries.findIndex(e => e.id === id);
+  if (idx === -1) return;
+  const e = state.entries[idx];
+  if (e.type === 'savings' || e.type === 'income') state.balance -= e.amount;
+  else if (e.type === 'expense') state.balance += e.amount;
+  state.entries.splice(idx, 1);
+  save(state);
+  recalc();
+}
+
+function renderHistory() {
+  const wrap = document.getElementById('history-table-wrap');
+  if (!state.entries.length) {
+    wrap.innerHTML = '<div class="empty"><div style="font-size:32px;">📋</div><p>No transactions yet.</p></div>';
+    return;
+  }
+  wrap.innerHTML = `<table class="log-table">
+    <thead><tr><th>Date</th><th>Type</th><th>Amount</th><th>Note</th><th></th></tr></thead>
+    <tbody>${state.entries.map(e => `
+      <tr>
+        <td>${e.date}</td>
+        <td><span class="badge ${e.type}">${e.type}</span></td>
+        <td style="color:${e.type==='expense'?'var(--danger)':'var(--accent2)'};">
+          ${e.type==='expense'?'−':'+'}${fmt(e.amount)}
+        </td>
+        <td style="color:var(--muted);">${e.note||'—'}</td>
+        <td><button class="delete-btn" onclick="deleteEntry(${e.id})">✕</button></td>
+      </tr>`).join('')}
+    </tbody>
+  </table>`;
+}
+
+// ── SETTINGS ──────────────────────────────────────────────────────────
+function saveSettings() {
+  state.settings = getSettings();
+  state.balance  = state.settings.current;
+  save(state);
+  updateYearsLeft();
+  recalc();
+  const btn = document.querySelector('.btn');
+  btn.textContent = 'Saved ✓';
+  setTimeout(() => btn.textContent = 'Save Settings', 1500);
+}
+
+function exportData() {
+  const blob = new Blob([JSON.stringify(state, null, 2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'home-tracker-backup.json';
+  a.click();
+}
+
+function clearData() {
+  if (!confirm('Reset all data? This cannot be undone.')) return;
+  state = defaultState();
+  save(state);
+  init();
+}
+
+// ── TABS ──────────────────────────────────────────────────────────────
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach((t,i) => {
+    const names = ['overview','log','history','milestones'];
+    t.classList.toggle('active', names[i] === name);
+  });
+  document.querySelectorAll('.panel').forEach(p => {
+    p.classList.toggle('active', p.id === 'panel-' + name);
+  });
+}
+
+// ── HELPERS ───────────────────────────────────────────────────────────
+function fmt(n) { return '$' + Math.round(n).toLocaleString(); }
+function fmtM(n) { return n >= 1e6 ? '$' + (n/1e6).toFixed(2)+'M' : fmt(n); }
+
+init();
+</script>
+</body>
+</html>
